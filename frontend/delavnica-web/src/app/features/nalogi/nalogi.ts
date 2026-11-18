@@ -1,5 +1,5 @@
 import { firstValueFrom } from 'rxjs';
-import { Component, TemplateRef, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { FormField, FormRoot, form, min, required } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -46,7 +46,16 @@ export class Nalogi {
   // mehanike za dodelitev naloga vidi samo vodja
   private readonly uporabniki = this.uporabnikiApi.seznam(this.jeVodja);
   protected readonly stranke = computed(() => this.uporabniki.value().filter((u) => u.vloga === 'STRANKA'));
-  protected readonly mehaniki = computed(() => this.uporabniki.value().filter((u) => u.vloga === 'MEHANIK'));
+  protected readonly mehaniki = computed(() =>
+    this.uporabniki.value().filter((u) => u.vloga === 'MEHANIK').map((u) => ({ vrednost: u.id, oznaka: `${u.ime} ${u.priimek}` })),
+  );
+  protected readonly stanjaMoznosti = this.stanja.map((s) => ({ vrednost: s, oznaka: s }));
+  protected readonly voziloMoznosti = computed(() =>
+    this.vozila.value().map((v) => ({ vrednost: v.id, oznaka: `${v.registrska} (${v.znamka} ${v.model})` })),
+  );
+  protected readonly delMoznosti = computed(() =>
+    this.deli.value().map((d) => ({ vrednost: d.id, oznaka: `${d.naziv} (zaloga ${d.zaloga})` })),
+  );
 
   // --- obrazec: nov nalog (v oknu) ---
   private modelNalog = signal({ ...prazenNalog });
@@ -76,11 +85,15 @@ export class Nalogi {
     this.filter.update((f) => ({ ...f, [polje]: vrednost }));
   }
 
-  protected async odpriNalog(predloga: TemplateRef<unknown>) {
+  protected async odpriNalog() {
     const shranjeno = await odpriObrazec(this.dialog, {
       naslov: 'Nov delovni nalog',
-      predloga,
-      veljaven: () => !this.obrazecNalog().invalid(),
+      obrazec: this.obrazecNalog,
+      polja: [
+        { kljuc: 'voziloId', oznaka: 'Vozilo', moznosti: this.voziloMoznosti, placeholder: 'Izberi vozilo' },
+        { kljuc: 'mehanikId', oznaka: 'Mehanik', moznosti: this.mehaniki, placeholder: 'Izberi mehanika' },
+        { kljuc: 'opis', oznaka: 'Opis težave' },
+      ],
       shrani: () => {
         const { voziloId, mehanikId, opis } = this.modelNalog();
         return this.nalogiApi.ustvari({ opis, vozilo: { id: voziloId }, mehanik: { id: mehanikId } });
@@ -90,11 +103,14 @@ export class Nalogi {
     if (shranjeno) this.nalogi.reload();
   }
 
-  protected async odpriDel(predloga: TemplateRef<unknown>) {
+  protected async odpriDel() {
     const shranjeno = await odpriObrazec(this.dialog, {
       naslov: 'Dodaj rezervni del na nalog',
-      predloga,
-      veljaven: () => !this.obrazecDel().invalid(),
+      obrazec: this.obrazecDel,
+      polja: [
+        { kljuc: 'delId', oznaka: 'Rezervni del', moznosti: this.delMoznosti, placeholder: 'Izberi del' },
+        { kljuc: 'kolicina', oznaka: 'Količina', tip: 'number' },
+      ],
       shrani: () => this.nalogiApi.dodajDel(this.izbranId()!, this.modelDel()),
     });
     this.obrazecDel().reset({ ...prazenDel });
