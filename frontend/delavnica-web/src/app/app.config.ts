@@ -5,8 +5,6 @@ import { routes } from './app.routes';
 import { apiUrlInterceptor } from './core/api-url.interceptor';
 import { authInterceptor } from './core/auth.interceptor';
 
-const neuporabljeno = 'lint mora pasti';
-
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
