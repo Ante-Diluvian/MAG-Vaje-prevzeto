@@ -183,7 +183,7 @@ jobs:
     if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment:
-      name: production
+      name: env
       url: ${{ vars.FRONTEND_URL }}
     permissions:
       contents: read
