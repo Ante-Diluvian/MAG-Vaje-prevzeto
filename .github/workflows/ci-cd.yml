@@ -1,0 +1,171 @@
+name: CI/CD
+
+# Cevovod se sproži ob vsakem pull requestu v main in ob vsakem pushu na main.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cevovod samo bere repozitorij.
+permissions:
+  contents: read
+
+# Ob novem pushu na isto vejo prekliči prejšnji, še nedokončan zagon.
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '25'
+  NODE_VERSION: '24'
+  BACKEND_DIR: backend/delavnica-api
+  FRONTEND_DIR: frontend/delavnica-web
+
+jobs:
+  # 2.2 Slog in kakovost kode: Checkstyle (backend) in ESLint (frontend). Ob napaki job pade.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prevzem kode
+        uses: actions/checkout@v7
+
+      - name: Namesti Javo
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      - name: Backend - Checkstyle
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: ./mvnw -B checkstyle:check
+
+      - name: Namesti Node.js
+        if: ${{ !cancelled() }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      # frontend se preveri tudi, če je backend padel, da sta vidni obe poročili
+      - name: Frontend - namesti odvisnosti
+        if: ${{ !cancelled() }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Frontend - ESLint
+        if: ${{ !cancelled() }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm run lint
+
+  # 2.3 Gradnja: backend jar in frontend dist. Odvisnosti (~/.m2 in npm) so predpomnjene,
+  # rezultati gradnje se shranijo kot artefakta za namestitev.
+  build:
+    name: Build
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prevzem kode
+        uses: actions/checkout@v7
+
+      - name: Namesti Javo (predpomnilnik ~/.m2)
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      - name: Backend - gradnja jar
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: ./mvnw -B -DskipTests package
+
+      - name: Backend - shrani jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-jar
+          path: ${{ env.BACKEND_DIR }}/target/*.jar
+          if-no-files-found: error
+
+      - name: Namesti Node.js (predpomnilnik npm)
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      - name: Frontend - namesti odvisnosti
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Frontend - gradnja
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm run build
+
+      - name: Frontend - shrani dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: ${{ env.FRONTEND_DIR }}/dist/delavnica-web/browser
+          if-no-files-found: error
+
+  # 2.4 Testi: JUnit + JaCoCo (backend) in Vitest + v8 (frontend). Če pade kateri koli test, pade job
+  # in s tem cevovod. Poročili o pokritosti se shranita kot artefakta (tudi ob padlih testih).
+  test:
+    name: Test
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prevzem kode
+        uses: actions/checkout@v7
+
+      - name: Namesti Javo (predpomnilnik ~/.m2)
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      # integracijski testi uporabljajo H2 v pomnilniku (profil "test"), zunanja baza ni potrebna
+      - name: Backend - testi in pokritost (JaCoCo)
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: ./mvnw -B test
+
+      - name: Backend - shrani poročilo o pokritosti
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-pokritost
+          path: ${{ env.BACKEND_DIR }}/target/site/jacoco
+          if-no-files-found: warn
+
+      - name: Namesti Node.js (predpomnilnik npm)
+        if: ${{ !cancelled() }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      - name: Frontend - namesti odvisnosti
+        if: ${{ !cancelled() }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Frontend - testi in pokritost (Vitest)
+        if: ${{ !cancelled() }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm run test:ci
+
+      - name: Frontend - shrani poročilo o pokritosti
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-pokritost
+          path: ${{ env.FRONTEND_DIR }}/coverage
+          if-no-files-found: warn

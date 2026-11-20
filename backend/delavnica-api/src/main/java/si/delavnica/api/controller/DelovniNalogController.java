@@ -51,7 +51,7 @@ public class DelovniNalogController {
 		nalogi.izbrisi(id, jwt);
 	}
 
-	
+
 	@PostMapping("/{id}/postavke")
 	@ResponseStatus(HttpStatus.CREATED)
 	PostavkaNaloga dodajDel(@PathVariable UUID id, @RequestBody @Valid DodajDelDto zahtevek, @AuthenticationPrincipal Jwt jwt) {
