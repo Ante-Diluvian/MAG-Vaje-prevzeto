@@ -3,7 +3,7 @@
 <mat-dialog-content>
   <div class="polja">
     @for (polje of podatki.polja; track polje.kljuc) {
-      @let f = podatki.obrazec[polje.kljuc];
+      @let f = besedilno(polje.kljuc);
       <mat-form-field>
         <mat-label>{{ polje.oznaka }}</mat-label>
         @if (polje.moznosti) {
@@ -16,7 +16,7 @@
             }
           </select>
         } @else if (polje.tip === 'number') {
-          <input matInput type="number" [formField]="f" />
+          <input matInput type="number" [formField]="stevilsko(polje.kljuc)" />
         } @else if (polje.tip === 'email') {
           <input matInput type="email" [formField]="f" />
         } @else if (polje.tip === 'password') {
@@ -32,8 +32,6 @@
 
 <mat-dialog-actions align="end">
   <button mat-button mat-dialog-close>Prekliči</button>
-  <!-- onemogočen gumb ne sprejme klika, zato klik ujame ovoj in pokaže napake -->
-  <span (click)="podatki.obrazec().markAsTouched()">
-    <button mat-flat-button [disabled]="podatki.obrazec().invalid()" (click)="shrani()">Shrani</button>
-  </span>
+  <!-- disabledInteractive: gumb je videti onemogočen, a sprejme klik (in fokus), da pokaže napake -->
+  <button mat-flat-button disabledInteractive [disabled]="podatki.obrazec().invalid()" (click)="shrani()">Shrani</button>
 </mat-dialog-actions>

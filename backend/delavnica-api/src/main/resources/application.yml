@@ -2,7 +2,8 @@ spring:
   application:
     name: delavnica-api
   datasource:
-    # CockroachDB (docker compose), povezava prek PostgreSQL gonilnika
+    # CockroachDB (docker compose), povezava prek PostgreSQL gonilnika.
+    # V produkciji jo nastavijo SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME in SPRING_DATASOURCE_PASSWORD.
     url: jdbc:postgresql://localhost:26257/delavnica?sslmode=disable
     username: root
   jpa:
@@ -11,9 +12,17 @@ spring:
   web:
     error:
       include-message: always
-# Skrivnost za podpis JWT (samo za razvoj, najmanj 32 znakov)
+# Skrivnost za podpis JWT (najmanj 32 znakov). Privzeta je samo za razvoj, v produkciji jo nastavi JWT_SECRET.
 jwt:
-  secret: "delavnica-razvojna-skrivnost-32-znakov!"
+  secret: "${JWT_SECRET:delavnica-razvojna-skrivnost-32-znakov!}"
+
+# Izvori (URL frontenda), s katerih sme brskalnik klicati API. Lokalno gre frontend prek proxyja.
+cors:
+  dovoljeni-izvori: "${CORS_ORIGINS:http://localhost:4200}"
+
+# Geslo vodje, ki se ustvari ob prvem zagonu (prazna baza). V produkciji ga nastavi ZACETNI_VODJA_GESLO.
+zacetni-vodja:
+  geslo: "${ZACETNI_VODJA_GESLO:vodja123}"
 
 logiranje:
   branje: true

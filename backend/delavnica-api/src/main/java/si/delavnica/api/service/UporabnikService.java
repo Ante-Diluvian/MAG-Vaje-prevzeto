@@ -26,7 +26,7 @@ public class UporabnikService extends CrudService<Uporabnik> {
 	@Override
 	public Uporabnik posodobi(UUID id, Uporabnik uporabnik) {
 		var obstojec = getById(id);
-				uporabnik.setGeslo(uporabnik.getGeslo() == null ? obstojec.getGeslo() : encoder.encode(uporabnik.getGeslo()));
+		uporabnik.setGeslo(uporabnik.getGeslo() == null ? obstojec.getGeslo() : encoder.encode(uporabnik.getGeslo()));
 		uporabnik.setTelefon(slovenskiTelefon(uporabnik.getTelefon()));
 		return super.posodobi(id, uporabnik);
 	}

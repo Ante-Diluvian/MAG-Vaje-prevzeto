@@ -37,4 +37,5 @@ Aplikacija za mehanične delavnice: delovni nalogi, rezervni deli, računi in ev
 - [04 Arhitektura in tehnološki sklad](docs/04-arhitektura-in-tehnoloski-sklad.md)
 - [05 Uporabniške zgodbe](docs/05-uporabniske-zgodbe.md)
 - [05 Wireframes](docs/05-wireframes.md)
+- [07 Pregled projekta](docs/07-pregled-projekta.md)
 - [Arhitekturne odločitve (ADR)](docs/adr/)
