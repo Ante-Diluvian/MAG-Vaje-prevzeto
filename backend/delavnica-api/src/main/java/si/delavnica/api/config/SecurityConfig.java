@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -16,7 +17,11 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -34,6 +39,7 @@ public class SecurityConfig {
 
 		return http
 				.csrf(csrf -> csrf.disable()) // žeton v glavi, brez piškotkov
+				.cors(Customizer.withDefaults()) // frontend je na drugi domeni, glej corsConfigurationSource
 				.sessionManagement(seja -> seja.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(zahteve -> zahteve
 						.requestMatchers("/api/prijava", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
@@ -47,6 +53,18 @@ public class SecurityConfig {
 						.anyRequest().hasRole("VODJA"))
 				.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(pretvornik)))
 				.build();
+	}
+
+	// Brskalnik sme API klicati samo z izvorov iz cors.dovoljeni-izvori (CORS_ORIGINS).
+	@Bean
+	CorsConfigurationSource corsConfigurationSource(@Value("${cors.dovoljeni-izvori}") List<String> izvori) {
+		var cors = new CorsConfiguration();
+		cors.setAllowedOrigins(izvori);
+		cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+		cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		var vir = new UrlBasedCorsConfigurationSource();
+		vir.registerCorsConfiguration("/api/**", cors);
+		return vir;
 	}
 
 	@Bean

@@ -2,7 +2,9 @@ package si.delavnica.api.controller;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -70,5 +72,21 @@ class ApiVarnostTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.prihodekPoMesecih").isArray())
 				.andExpect(jsonPath("$.prodaniDeli").isArray());
+	}
+
+	@Test
+	void corsDovoliZahtevoIzDovoljenegaIzvora() throws Exception {
+		mvc.perform(options("/api/nalogi").header("Origin", "http://localhost:4200")
+				.header("Access-Control-Request-Method", "GET")
+				.header("Access-Control-Request-Headers", "authorization"))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:4200"));
+	}
+
+	@Test
+	void corsZavrneZahtevoIzTujegaIzvora() throws Exception {
+		mvc.perform(options("/api/nalogi").header("Origin", "https://tuja-stran.example")
+				.header("Access-Control-Request-Method", "GET"))
+				.andExpect(status().isForbidden());
 	}
 }
